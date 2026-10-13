@@ -12,7 +12,7 @@ class Telegram:
         self.session = requests.Session()
 
     def call(self, method, timeout=30, **params):
-        for attempt in range(5):
+        for _ in range(5):
             r = self.session.post(self.base + method, json=params, timeout=timeout)
             data = r.json()
             if data.get("ok"):

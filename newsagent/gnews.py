@@ -5,7 +5,7 @@ from urllib.parse import quote
 
 import requests
 
-from .sources import UA, TIMEOUT
+from .sources import TIMEOUT, UA
 
 # EU visitors are redirected to a cookie-consent page without this
 CONSENT = {"SOCS": "CAI", "CONSENT": "YES+cb"}

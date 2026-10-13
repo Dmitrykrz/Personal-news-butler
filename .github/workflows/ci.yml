@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  secrets:
+    name: Secret scan (gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # scan the whole history, not just the last commit
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  lint:
+    name: Lint and checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"  # same as the container (Debian bookworm)
+      - run: pip install ruff==0.12.11 -r requirements.txt
+      - name: Ruff
+        run: ruff check .
+      - name: Compile
+        run: python -m compileall -q newsagent
+      - name: Example rules are valid
+        run: python -c "from newsagent.config import load_rules, CONFIG_DIR; load_rules(CONFIG_DIR / 'rules.example.yaml')"

@@ -240,7 +240,8 @@ def run_digest(send_item, run_name=None, dry_run=False):
         return []
     budget = (f"the reader wants {day_min}-{day_max} items per day in total. {sent_today} already sent "
               f"today; {later} more scheduled run(s) later today. Send at most {cap} now"
-              + (", leaving room for the later runs." if later else ", and reach the daily minimum if the material allows."))
+              + (", leaving room for the later runs." if later
+                 else ", and reach the daily minimum if the material allows."))
 
     plans = plan_rules(rules, db, today, run_name)
     log("  rules: " + ", ".join(f"{rid}{'' if p['due'] else '(flex)'}" for rid, p in plans.items()))
@@ -270,7 +271,7 @@ def run_digest(send_item, run_name=None, dry_run=False):
         resolve_google_links(cands)
         with ThreadPoolExecutor(max_workers=6) as pool:
             todo = [c for c in cands if not c.text and not c.needs_lookup]
-            for c, text in zip(todo, pool.map(lambda c: article_text(c.url), todo)):
+            for c, text in zip(todo, pool.map(lambda c: article_text(c.url), todo), strict=False):
                 c.text = text
 
         prompt = FINAL_PROMPT.format(candidates=describe_candidates(cands, full=True), **fmt)

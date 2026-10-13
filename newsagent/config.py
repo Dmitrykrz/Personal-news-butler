@@ -93,7 +93,7 @@ def load_rules(path: Path = RULES_FILE) -> dict:
     try:
         doc = yaml.safe_load(path.read_text(encoding="utf-8"))
     except yaml.YAMLError as e:
-        raise ValueError(f"rules.yaml is not valid YAML: {e}")
+        raise ValueError(f"rules.yaml is not valid YAML: {e}") from e
     if not isinstance(doc, dict) or not isinstance(doc.get("rules"), list):
         raise ValueError("rules.yaml must have a top-level 'rules' list")
     settings = doc.setdefault("settings", {})

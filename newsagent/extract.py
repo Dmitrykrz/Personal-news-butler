@@ -4,7 +4,7 @@ import re
 import requests
 import trafilatura
 
-from .sources import UA, TIMEOUT
+from .sources import TIMEOUT, UA
 
 MAX_CHARS = 6000
 
