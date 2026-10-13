@@ -21,16 +21,22 @@ def _error(details):
     return ClaudeError(details)
 
 
-def run_claude(prompt, tools=(), cwd=None, permission_mode=None, timeout=900, model=None) -> str:
-    """Run one non-interactive Claude turn. `tools` is the full list of tools Claude may use."""
+def run_claude(prompt, tools=(), allow=None, deny=(), cwd=None, permission_mode=None, timeout=900,
+               model=None) -> str:
+    """Run one non-interactive Claude turn. `tools` is the full list of tools Claude has.
+    `allow` are the permission rules it may use without asking (default: all of `tools`), e.g.
+    "Edit(config/**)"; anything not allowed is refused, since nobody can approve it. `deny` wins over allow."""
     if not CLAUDE_TOKEN:
         raise ClaudeError(f"CLAUDE_CODE_OAUTH_TOKEN is not set. {TOKEN_HELP}")
     # isolated: no user/project settings, no MCP servers, only the tools we name
     cmd = ["claude", "-p", "--model", model or CLAUDE_MODEL, "--output-format", "json",
            "--no-session-persistence", "--setting-sources", "", "--strict-mcp-config",
            "--tools", ",".join(tools)]
-    if tools:
-        cmd += ["--allowedTools", ",".join(tools)]
+    allow = tools if allow is None else allow
+    if allow:
+        cmd += ["--allowedTools", ",".join(allow)]
+    if deny:
+        cmd += ["--disallowedTools", ",".join(deny)]
     if permission_mode:
         cmd += ["--permission-mode", permission_mode]
     with tempfile.TemporaryDirectory() as tmp:
@@ -39,7 +45,7 @@ def run_claude(prompt, tools=(), cwd=None, permission_mode=None, timeout=900, mo
     try:
         out = json.loads(proc.stdout)
     except json.JSONDecodeError:
-        raise _error(f"claude exited {proc.returncode}: {(proc.stderr or proc.stdout)[-800:]}")
+        raise _error(f"claude exited {proc.returncode}: {(proc.stderr or proc.stdout)[-800:]}") from None
     if out.get("is_error"):
         raise _error(f"claude error: {str(out.get('result'))[-800:]}")
     # on a subscription token nothing is billed; total_cost_usd is only a measure of usage
@@ -55,4 +61,4 @@ def extract_json(text):
     try:
         return json.loads(raw)
     except json.JSONDecodeError as e:
-        raise ClaudeError(f"could not parse JSON from Claude: {e}; reply was: {text[:500]}")
+        raise ClaudeError(f"could not parse JSON from Claude: {e}; reply was: {text[:500]}") from e

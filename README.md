@@ -1,4 +1,4 @@
-# News agent
+# Personal News Butler
 
 A personal news digest that lives in a private Telegram chat. A few times a day it collects
 articles from the sources you chose (RSS feeds, Hacker News, GitHub trending, Google News),
@@ -6,7 +6,8 @@ and Claude picks the few worth your time and writes a short summary of each.
 
 You configure it by talking to it. "Less crypto." "Add Ars Technica, every other day."
 "Send the evening digest at 20:00." Each message starts a Claude Code session that edits the
-configuration (or even the bot's own code) and tells you what it changed. `/undo` reverts it.
+configuration and tells you what it changed. `/undo` reverts it. With `/dev` it can even fix
+or extend the bot's own code.
 
 Runs in Docker on a Linux server. Uses your Claude subscription (Pro or Max) through Claude
 Code; no API key, nothing billed per call.
@@ -19,7 +20,7 @@ subscription, and Telegram.
 **1. Get the code**
 
 ```sh
-git clone <repo-url> /opt/news-agent
+git clone https://github.com/Dmitrykrz/Personal-news-butler.git /opt/news-agent
 cd /opt/news-agent
 cp .env.example .env
 ```
@@ -77,15 +78,19 @@ digest right away.
 | `/fire_once` | run a digest now (takes a few minutes) |
 | `/status` | current time, schedule, which rules are due in each run |
 | `/undo` | revert the last change the bot made |
+| `/dev <request>` | change the bot's code (see [Security](#security)) |
 
-Anything else goes to Claude:
+Anything else goes to Claude, which can only edit your configuration:
 
 - **Taste feedback:** "too much AI news", "I liked this one". To talk about a specific item,
   reply to its message.
 - **Rule changes:** "add the Cloudflare blog, weekly", "France news every day", "max 5 items".
+  The bot test-fetches new sources and warns you if one doesn't work.
 - **Questions:** "why didn't I get Hacker News today?" It reads the logs and run records.
-- **Bugs and features:** "the summaries are cut off", "add a source type for Mastodon". It can
-  change the bot's code; the bot checks the change and restarts itself.
+
+For bugs and features use `/dev`: "/dev the summaries are cut off", "/dev add a source type
+for Mastodon". Claude then gets a shell, changes the code, and the bot checks the change,
+commits it and restarts itself.
 
 ## Configuration files
 
@@ -142,11 +147,20 @@ search instead.
 
 ## Security
 
-The Telegram agent is a Claude Code session with shell access inside the container, and it
-reads web pages. The container holds your Telegram and Claude tokens. Only your chat can talk
-to the bot, but a malicious web page could in principle try to instruct the agent. Run it on a
-machine where that container is the only thing at stake, don't mount anything else into it,
-and use a Telegram bot token you don't use elsewhere.
+Only your chat can talk to the bot; messages from other chats are ignored. The remaining risk
+is prompt injection: news articles are text written by strangers, and Claude reads them.
+
+- **Digest runs:** Claude only gets WebSearch and WebFetch; no shell, no files. A malicious
+  article could at worst get itself picked or summarized misleadingly.
+- **Your messages (default):** Claude can read the project and edit only `config/`. It has no
+  shell and no WebFetch, and `.env` is blocked by Claude Code's permission rules. Article text
+  it reads in logs could at worst change your config, which `/undo` reverts.
+- **`/dev` messages:** Claude gets a shell inside the container, which holds your Telegram and
+  Claude tokens, and can change code. Use it for code work only, and avoid asking it to read
+  run records or web pages at the same time.
+
+The container runs as an unprivileged user with only the project folder mounted. Keep it that
+way: don't mount anything else into it, and use a Telegram bot token you don't use elsewhere.
 
 ## License
 

@@ -8,8 +8,19 @@ from datetime import timedelta
 from html import escape
 
 from .claude import run_claude
-from .config import (RULES_FILE, TASTE_FILE, TELEGRAM_CHAT_ID, TELEGRAM_TOKEN, TIMEZONE, ConfigMissing,
-                     ensure_dirs, load_rules, log, now_local, timezone_problem)
+from .config import (
+    RULES_FILE,
+    TASTE_FILE,
+    TELEGRAM_CHAT_ID,
+    TELEGRAM_TOKEN,
+    TIMEZONE,
+    ConfigMissing,
+    ensure_dirs,
+    load_rules,
+    log,
+    now_local,
+    timezone_problem,
+)
 from .db import DB
 from .digest import plan_rules, run_digest
 from .feedback import handle_message, undo_last
@@ -31,8 +42,9 @@ HELP = """Hi! I'm your news digest bot.
 /fire_once — run a digest now
 /status — schedule and what's due
 /undo — revert the last change I made
+/dev <request> — bug fixes and code changes (gives Claude a shell)
 
-Anything else you write goes to Claude: taste feedback ("less of X"), rule changes ("France news daily"), questions, or even bug reports and code changes.
+Anything else you write goes to Claude: taste feedback ("less of X"), rule changes ("France news daily") or questions.
 Reply to a specific news message to talk about that item."""
 
 
@@ -113,13 +125,13 @@ class Bot:
         finally:
             self.digest_lock.release()
 
-    def agent(self, text, reply_to):
+    def agent(self, text, reply_to, dev=False):
         with self.agent_lock:
             item = self.db.sent_by_message(reply_to) if reply_to else None
             self.tg.typing(self.chat_id)
             restart = False
             try:
-                answer, restart = handle_message(text, self.db, dict(item) if item else None)
+                answer, restart = handle_message(text, self.db, dict(item) if item else None, dev=dev)
             except Exception as e:
                 log(traceback.format_exc())
                 answer = f"⚠️ Couldn't process that: {str(e)[:500]}"
@@ -202,13 +214,20 @@ class Bot:
             self.background(self.undo)
         else:
             reply_to = (msg.get("reply_to_message") or {}).get("message_id")
-            self.background(self.agent, text, reply_to)
+            dev = command == "/dev"
+            if dev:
+                text = text[len(text.split()[0]):].strip()
+                if not text:
+                    self.say("Usage: /dev <what to fix or change in the bot's code>")
+                    return
+            self.background(self.agent, text, reply_to, dev)
 
     def run(self):
         self.tg.call("setMyCommands", commands=[
             {"command": "fire_once", "description": "Run a digest now"},
             {"command": "status", "description": "Schedule and what's due"},
             {"command": "undo", "description": "Revert the last change"},
+            {"command": "dev", "description": "Change the bot's code (gives Claude a shell)"},
         ])
         if self.chat_id is not None:
             self.background(self.check_setup)
