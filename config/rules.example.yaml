@@ -1,0 +1,103 @@
+# News agent rules.
+#
+# This is an example. The real file is config/rules.yaml (gitignored). The bot creates it
+# from your first Telegram messages, or copy this file and edit it by hand.
+#
+# The bot runs a digest at each time in settings.schedule (in the TZ timezone from .env).
+# A rule is DUE when at least `every_days` calendar days have passed since it last ran, and
+# (if it has `run:`) only in that scheduled run. Claude treats rules as guidance, not law:
+#   - a due rule may be skipped if nothing worth sending turned up;
+#   - a `flexible` rule is also checked when not due, and Claude may include it
+#     anyway if something truly important happened.
+#
+# Fields:
+#   id           unique name
+#   description  what this rule is for (Claude reads it)
+#   kind         news | learning | mixed  (learning = tips/tutorials)
+#   priority     high | normal | low
+#   every_days   how often the rule is due (calendar days)
+#   run          which scheduled run it belongs to (a name from settings.schedule);
+#                omit = first scheduled run that finds it due
+#   pick         how many items this rule may contribute (soft limit)
+#   lookback_days  how far back to look for articles
+#   flexible     true = may break the schedule for exceptional news
+#   rotate       true = only ONE source from the list per due run, round-robin
+#   notes        extra guidance for Claude
+#   sources      list of {type, name, url, ...}
+#                types: rss | hn | github_trending | gnews (Google News RSS)
+#                hn: min_points (default 150); github_trending: since (daily | weekly | monthly);
+#                any source: max_items (default 30)
+
+settings:
+  language: English          # language of titles and summaries
+  schedule:                  # run name: local time
+    morning: "08:30"
+    evening: "18:30"
+  items_per_day:             # total across all runs of a day
+    min: 3
+    max: 7
+  learning_share: about one quarter of the items, never more
+
+rules:
+  - id: hacker-news
+    description: Hacker News front page, the most discussed tech stories.
+    kind: news
+    priority: high
+    every_days: 1
+    run: morning
+    pick: 2
+    lookback_days: 2
+    notes: Programming, open source, security and science. Skip startup funding and opinion pieces.
+    sources:
+      - {type: hn, name: Hacker News, min_points: 250}
+
+  - id: python-blogs
+    description: Python blogs, one per run in rotation. The single most useful post since the last visit.
+    kind: learning
+    priority: normal
+    every_days: 1
+    run: evening
+    pick: 1
+    rotate: true
+    lookback_days: 30
+    notes: Prefer practical tips that can be tried in a few minutes over long theory.
+    sources:
+      - {type: rss, name: Real Python, url: "https://realpython.com/atom.xml"}
+      - {type: rss, name: Simon Willison, url: "https://simonwillison.net/atom/everything/"}
+      - {type: rss, name: Python Insider, url: "https://blog.python.org/feeds/posts/default"}
+
+  - id: space
+    description: The biggest space and astronomy story.
+    kind: news
+    priority: normal
+    every_days: 2
+    run: morning
+    pick: 1
+    flexible: true
+    lookback_days: 3
+    sources:
+      - {type: rss, name: NASA, url: "https://www.nasa.gov/news-release/feed/"}
+      - {type: gnews, name: Google News (space), url: "https://news.google.com/rss/search?q=space+OR+astronomy+when:3d&hl=en-US&gl=US&ceid=US:en"}
+
+  - id: github-trending
+    description: GitHub trending repositories of the week.
+    kind: news
+    priority: low
+    every_days: 7
+    run: evening
+    pick: 1
+    sources:
+      - {type: github_trending, name: GitHub trending, since: weekly}
+
+  - id: local-city
+    description: The most important local news in Lisbon.
+    kind: news
+    priority: low
+    every_days: 3
+    run: morning
+    pick: 1
+    flexible: true
+    lookback_days: 3
+    notes: Things that affect daily life (transport, events, housing). Skip crime and sports scores.
+    sources:
+      - {type: gnews, name: Google News Lisbon, url: "https://news.google.com/rss/search?q=Lisbon+when:3d&hl=en-US&gl=US&ceid=US:en"}

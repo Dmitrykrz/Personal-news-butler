@@ -1,0 +1,9 @@
+services:
+  newsbot:
+    build: .
+    container_name: newsbot
+    restart: unless-stopped
+    env_file: .env  # tokens, chat id, TZ
+    volumes:
+      # whole project: code + config + data. The Telegram agent edits it and commits to git.
+      - .:/app

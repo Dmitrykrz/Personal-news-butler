@@ -1,0 +1,10 @@
+.env
+data/
+__pycache__/
+*.pyc
+.venv/
+# personal config: created by the bot from your Telegram messages (see config/*.example.*)
+config/rules.yaml
+config/taste.md
+# personal notes for Claude Code sessions on your own machine
+CLAUDE.local.md
