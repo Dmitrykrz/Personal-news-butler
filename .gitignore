@@ -6,5 +6,6 @@ __pycache__/
 # personal config: created by the bot from your Telegram messages (see config/*.example.*)
 config/rules.yaml
 config/taste.md
+config/media.yaml
 # personal notes for Claude Code sessions on your own machine
 CLAUDE.local.md

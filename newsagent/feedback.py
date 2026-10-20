@@ -15,6 +15,7 @@ import yaml
 
 from .claude import run_claude
 from .config import APP_DIR, RULES_FILE, TASTE_FILE, ConfigMissing, git, load_rules, log
+from .deeper import MEDIA_FILE
 from .sources import fetch_source
 
 CONFIG_TOOLS = ("Read", "Edit", "Write", "Glob", "Grep", "WebSearch")
@@ -22,7 +23,8 @@ CONFIG_ALLOW = ("Read", "Glob", "Grep", "WebSearch", "Edit(config/**)")  # Edit 
 DEV_TOOLS = ("Read", "Edit", "Write", "Bash", "Glob", "Grep", "WebFetch", "WebSearch")
 DENY = ("Read(.env)",)
 CODE_PATHS = ("newsagent/", "requirements.txt", "Dockerfile", "docker-compose.yml")
-CONFIG_FILES = {"config/rules.yaml": RULES_FILE, "config/taste.md": TASTE_FILE}
+CONFIG_FILES = {"config/rules.yaml": RULES_FILE, "config/taste.md": TASTE_FILE, "config/media.yaml": MEDIA_FILE}
+REQUIRED_CONFIG = ("config/rules.yaml", "config/taste.md")
 
 AGENT_PROMPT = """You are the maintainer of a personal news digest bot, running inside its own
 container. The bot's owner just sent this message from Telegram:
@@ -50,6 +52,8 @@ CONFIG_MODE = """You can only edit files under config/ (no shell, no code change
 - A structural request (sources, schedule times, counts, priorities) -> edit config/rules.yaml.
   For new feeds use URLs you are confident exist (WebSearch helps); the bot test-fetches new
   sources after you finish and tells the owner if one fails.
+- Outlets for "deeper" (adding, removing or re-rating a news outlet) -> edit config/media.yaml
+  (create it from config/media.example.yaml if it doesn't exist; keep its schema comment).
 - A question -> answer it; change nothing.
 - A bug report or a request to change how the bot works -> you can't change code in this mode.
   Investigate what you can by reading, explain, and tell the owner to resend it as
@@ -140,7 +144,7 @@ def handle_message(text, db, item=None, dev=False):
             f"rule: {item['rule_id']}\ntitle: {item['title']}\nsummary: {item['summary']}\nurl: {item['url']}\n"
         )
     before = read_config()
-    missing = [name for name, content in before.items() if content is None]
+    missing = [name for name in REQUIRED_CONFIG if before[name] is None]
     setup = SETUP_PROMPT.format(missing=" and ".join(missing)) if missing else ""
     prompt = AGENT_PROMPT.format(text=text, context=context, setup=setup, mode=DEV_MODE if dev else CONFIG_MODE)
     if dev:

@@ -22,6 +22,7 @@ from .config import (
     timezone_problem,
 )
 from .db import DB
+from .deeper import dig_deeper, is_trigger, split_message
 from .digest import plan_rules, run_digest
 from .feedback import handle_message, undo_last
 from .telegram import Telegram
@@ -45,7 +46,8 @@ HELP = """Hi! I'm your news digest bot.
 /dev <request> — bug fixes and code changes (gives Claude a shell)
 
 Anything else you write goes to Claude: taste feedback ("less of X"), rule changes ("France news daily") or questions.
-Reply to a specific news message to talk about that item."""
+Reply to a specific news message to talk about that item, or reply "deeper" to compare how
+different outlets cover that story."""
 
 
 def format_item(item):
@@ -75,6 +77,7 @@ class Bot:
         self.db = DB()
         self.digest_lock = threading.Lock()
         self.agent_lock = threading.Lock()
+        self.deeper_lock = threading.Lock()
 
     def say(self, text, reply_to=None):
         return self.tg.send(self.chat_id, text, preview=False, reply_to=reply_to)
@@ -139,6 +142,24 @@ class Bot:
             self.say(answer)
             if restart:
                 self.restart()
+
+    def deeper(self, reply_to):
+        item = self.db.sent_by_message(reply_to)
+        if not item:
+            self.say("I can only dig deeper into a news message I sent: reply \"deeper\" to one of them.")
+            return
+        if not self.deeper_lock.acquire(blocking=False):
+            self.say("Already digging into another story, try again in a few minutes.")
+            return
+        try:
+            self.say("🔎 Comparing outlets… (takes a few minutes)", reply_to=reply_to)
+            for chunk in split_message(dig_deeper(dict(item))):
+                self.say(chunk, reply_to=reply_to)
+        except Exception as e:
+            log(traceback.format_exc())
+            self.say(f"⚠️ Deeper failed: {str(e)[:500]}", reply_to=reply_to)
+        finally:
+            self.deeper_lock.release()
 
     def undo(self):
         with self.agent_lock:
@@ -212,6 +233,9 @@ class Bot:
             self.status()
         elif command == "/undo":
             self.background(self.undo)
+        elif is_trigger(text):
+            reply_to = (msg.get("reply_to_message") or {}).get("message_id")
+            self.background(self.deeper, reply_to)
         else:
             reply_to = (msg.get("reply_to_message") or {}).get("message_id")
             dev = command == "/dev"

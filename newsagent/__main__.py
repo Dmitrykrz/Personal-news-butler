@@ -1,4 +1,4 @@
-"""Entry point: python -m newsagent {bot,digest,fetch}"""
+"""Entry point: python -m newsagent {bot,digest,fetch,deeper}"""
 import argparse
 
 from .config import TELEGRAM_CHAT_ID, TELEGRAM_TOKEN, ensure_dirs, load_rules, log
@@ -17,6 +17,13 @@ def cmd_digest(args):
         def send(item):
             return tg.send(int(TELEGRAM_CHAT_ID), format_item(item), html=True)
     run_digest(send, run_name=args.run, dry_run=args.dry_run)
+
+
+def cmd_deeper(args):
+    """Debug: run "deeper" for any article URL and print the report (nothing sent)."""
+    from .deeper import dig_deeper
+
+    print(dig_deeper({"title": args.title or args.url, "summary": "", "url": args.url}))
 
 
 def cmd_fetch(args):
@@ -43,6 +50,9 @@ def main():
     d.add_argument("--dry-run", action="store_true", help="print instead of sending; don't change state")
     f = sub.add_parser("fetch", help="test all sources without Claude")
     f.add_argument("rule", nargs="?")
+    dp = sub.add_parser("deeper", help="compare outlets' coverage of an article, print the report")
+    dp.add_argument("url")
+    dp.add_argument("title", nargs="?")
     args = p.parse_args()
 
     ensure_dirs()
@@ -51,6 +61,8 @@ def main():
         bot_main()
     elif args.cmd == "digest":
         cmd_digest(args)
+    elif args.cmd == "deeper":
+        cmd_deeper(args)
     else:
         cmd_fetch(args)
 

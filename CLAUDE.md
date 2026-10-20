@@ -29,6 +29,9 @@ If you are the agent inside the container, ignore this section.
   much harm. `/dev <request>` runs it with a shell and code access. After you finish, the bot validates (rules.yaml loads, Python compiles). Code changes become a git
   commit and restart the container; config changes are recorded in the DB so `/undo` can
   restore the previous version. If validation fails, all your changes are reverted.
+- `newsagent/deeper.py`: a reply "deeper" to a sent item. One Claude call (WebSearch/WebFetch)
+  finds the same story on 4-6 outlets from `config/media.yaml`, spread across leanings and
+  countries, and reports agreed facts and each outlet's framing. Saved in `data/runs/*-deeper/`.
 - `newsagent/claude.py`: runs `claude -p` isolated (`--setting-sources ""`, `--strict-mcp-config`,
   explicit `--tools`). Auth is the subscription token in `CLAUDE_CODE_OAUTH_TOKEN`, never an API key.
 - State: `data/newsbot.db` (SQLite: sent items, rule state, feedback log, change log for /undo).
@@ -37,7 +40,9 @@ If you are the agent inside the container, ignore this section.
 - `config/rules.yaml`: sources, schedules, counts, priorities. Schema in the comment at the top
   of `config/rules.example.yaml`.
 - `config/taste.md`: the reader's taste in prose. Soft preferences go here.
-- Both are personal and gitignored. The `*.example.*` files next to them are the shared
+- `config/media.yaml`: the media map for "deeper" (outlets, leaning, owner). Schema in the
+  comment at the top of `config/media.example.yaml`.
+- All three are personal and gitignored. The `*.example.*` files next to them are the shared
   templates: don't put the owner's preferences there.
 
 ## Debugging

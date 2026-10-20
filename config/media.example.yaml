@@ -1,0 +1,158 @@
+# Media map for "deeper": the outlets the bot compares when you reply "deeper" to a news item.
+#
+# The bot never googles the whole web for a deeper look: it picks a spread of outlets from this
+# list (different leanings, countries and owners) and looks for the same story on each of them.
+# Copy this file to config/media.yaml to make your own (the bot does that on first use).
+#
+# Fields:
+#   id           unique name
+#   name         display name
+#   domain       site to search (the bot searches only this domain for the story)
+#   country      ISO code of where it is based (EU = pan-European)
+#   scope        local | national | european | international
+#   language     language it publishes in (search in this language)
+#   lean         far-left | left | left-center | center | right-center | right | far-right
+#   eu           pro-EU | neutral | eurosceptic
+#   russia       critical | neutral | kremlin-friendly | kremlin
+#   reliability  high | mostly-factual | mixed | low
+#   owner        who owns or funds it
+#   paywall      free | partial | paywalled  (paywalled outlets don't belong here: the bot can't read them)
+#   rated_by     where the lean/reliability come from (e.g. MBFC = mediabiasfactcheck.com)
+#   notes        anything else Claude should know when reading it
+
+media:
+  - id: franceinfo
+    name: France Info
+    domain: francetvinfo.fr
+    country: FR
+    scope: national
+    language: fr
+    lean: left-center
+    eu: pro-EU
+    russia: critical
+    reliability: high
+    owner: French state (France Télévisions / Radio France)
+    paywall: free
+    rated_by: MBFC Left-Center, High
+    notes: Public service. Moderately progressive editorial line; straight news is solid.
+
+  - id: lefigaro
+    name: Le Figaro
+    domain: lefigaro.fr
+    country: FR
+    scope: national
+    language: fr
+    lean: right-center
+    eu: neutral
+    russia: critical
+    reliability: high
+    owner: Dassault family (Dassault Aviation, defence industry)
+    paywall: partial
+    rated_by: MBFC Right-Center, High
+    notes: Main conservative daily. Many articles are subscriber-only; use the free ones.
+
+  - id: metropolitain
+    name: Métropolitain (actu.fr Montpellier)
+    domain: actu.fr
+    country: FR
+    scope: local
+    language: fr
+    lean: center
+    eu: neutral
+    russia: neutral
+    reliability: mostly-factual
+    owner: Publihebdos (Ouest-France group, owned by a non-profit association)
+    paywall: free
+    rated_by: not rated; own assessment
+    notes: Montpellier local news (actu.fr/occitanie/montpellier); put Montpellier in the search query.
+      Only useful for stories with a Montpellier/Hérault angle.
+
+  - id: euronews
+    name: Euronews
+    domain: euronews.com
+    country: EU
+    scope: european
+    language: en
+    lean: left-center
+    eu: pro-EU
+    russia: critical
+    reliability: mostly-factual
+    owner: Alpac Capital (Portugal, 88%; reported ties to Viktor Orbán's circle); state broadcasters 12%
+    paywall: free
+    rated_by: MBFC Left-Center, Mostly Factual
+    notes: Neutral wire-style reporting; MBFC flags possible government-paid content.
+
+  - id: bbc
+    name: BBC News
+    domain: bbc.com
+    country: GB
+    scope: international
+    language: en
+    lean: left-center
+    eu: neutral
+    russia: critical
+    reliability: high
+    owner: UK public broadcaster (licence fee)
+    paywall: free
+    rated_by: MBFC Left-Center, High
+    notes: Outside view on continental Europe.
+
+  - id: brusselssignal
+    name: Brussels Signal
+    domain: brusselssignal.eu
+    country: EU
+    scope: european
+    language: en
+    lean: right-center
+    eu: eurosceptic
+    russia: neutral
+    reliability: mostly-factual
+    owner: Remedia Europe (founded with money from US strategist Patrick Egan; funding undisclosed)
+    paywall: free
+    rated_by: MBFC Right-Center, Mostly Factual
+    notes: National-conservative take on EU affairs. Commentary is one-sided; wire pickups are reliable.
+
+  - id: meduza
+    name: Meduza
+    domain: meduza.io
+    country: LV
+    scope: international
+    language: en
+    lean: left
+    eu: pro-EU
+    russia: critical
+    reliability: high
+    owner: Independent Russian outlet in exile (Riga), reader donations
+    paywall: free
+    rated_by: MBFC Left, High
+    notes: Russian independent view on Russia. Use the English edition (meduza.io/en).
+
+  - id: cnn
+    name: CNN
+    domain: cnn.com
+    country: US
+    scope: international
+    language: en
+    lean: left-center
+    eu: neutral
+    russia: critical
+    reliability: mostly-factual
+    owner: Warner Bros. Discovery
+    paywall: free
+    rated_by: MBFC Left-Center, Mostly Factual
+    notes: US mainstream view. Hosts' commentary leans further left than the news.
+
+  - id: abcnews
+    name: ABC News
+    domain: abcnews.go.com
+    country: US
+    scope: international
+    language: en
+    lean: left-center
+    eu: neutral
+    russia: critical
+    reliability: high
+    owner: Disney
+    paywall: free
+    rated_by: MBFC Left-Center, High
+    notes: US network news, often carries AP/Reuters wire copy on Europe.

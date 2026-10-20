@@ -88,19 +88,25 @@ Anything else goes to Claude, which can only edit your configuration:
   The bot test-fetches new sources and warns you if one doesn't work.
 - **Questions:** "why didn't I get Hacker News today?" It reads the logs and run records.
 
+Reply **deeper** to a news message to see the bigger picture: the bot finds the same story
+on 4-6 outlets from your media map (different leanings, countries and owners), reads them and
+tells you what they agree on and how each one frames it.
+
 For bugs and features use `/dev`: "/dev the summaries are cut off", "/dev add a source type
 for Mastodon". Claude then gets a shell, changes the code, and the bot checks the change,
 commits it and restarts itself.
 
 ## Configuration files
 
-Everything you set through the chat lives in two files. They are personal and gitignored, so
+Everything you set through the chat lives in three files. They are personal and gitignored, so
 you can update the code without conflicts:
 
 - `config/rules.yaml`: sources, schedule, how often and how many. The full schema is in the
   comment at the top of [`config/rules.example.yaml`](config/rules.example.yaml).
 - `config/taste.md`: who you are and what you like, in prose
   ([example](config/taste.example.md)).
+- `config/media.yaml`: the outlets "deeper" compares, with their leaning, stance on the EU and
+  Russia, reliability and owner. Created from [the example](config/media.example.yaml) on first use.
 
 You can also edit them by hand; the bot rereads them on every run. To start from the examples
 instead of the chat:
