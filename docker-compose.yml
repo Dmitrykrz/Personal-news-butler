@@ -1,7 +1,7 @@
 services:
   newsbot:
     build: .
-    container_name: newsbot
+    container_name: ${CONTAINER_NAME:-newsbot}
     restart: unless-stopped
     env_file: .env  # tokens, chat id, TZ
     volumes:
