@@ -5,7 +5,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 
 from . import gnews
-from .claude import extract_json, run_claude
+from .claude import ClaudeError, extract_json, run_claude
 from .config import RUNS_DIR, TASTE_FILE, load_rules, log, now_local, timezone_problem
 from .db import DB
 from .extract import article_text
@@ -276,9 +276,16 @@ def run_digest(send_item, run_name=None, dry_run=False):
 
         prompt = FINAL_PROMPT.format(candidates=describe_candidates(cands, full=True), **fmt)
         save_run(run_dir, "2-final-prompt.md", prompt)
-        reply = run_claude(prompt, tools=("WebSearch", "WebFetch"), timeout=1200)
-        save_run(run_dir, "2-final-reply.md", reply)
-        result = extract_json(reply)
+        for attempt in (1, 2):  # Claude occasionally returns malformed JSON: ask once more
+            reply = run_claude(prompt, tools=("WebSearch", "WebFetch"), timeout=1200)
+            save_run(run_dir, "2-final-reply.md", reply)
+            try:
+                result = extract_json(reply)
+                break
+            except ClaudeError:
+                if attempt == 2:
+                    raise
+                log("  final reply was not valid JSON, retrying")
         log(f"  editor: {len(result.get('items', []))} items. {result.get('notes', '')}")
 
         by_uid = {c.uid: c for c in cands}
