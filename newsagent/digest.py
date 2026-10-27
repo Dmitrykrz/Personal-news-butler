@@ -2,11 +2,12 @@
 import json
 import shutil
 import time
+import traceback
 from concurrent.futures import ThreadPoolExecutor
 
 from . import gnews
 from .claude import extract_json, run_claude
-from .config import RUNS_DIR, TASTE_FILE, load_rules, log, now_local, timezone_problem
+from .config import APP_DIR, RUNS_DIR, TASTE_FILE, load_rules, log, now_local, timezone_problem
 from .db import DB
 from .extract import article_text
 from .sources import fetch_source
@@ -88,6 +89,49 @@ Order items from most to least interesting. Answer with JSON only:
 ## Candidates
 {candidates}
 """
+
+# passed to `claude --json-schema`: the CLI makes Claude's answer match these
+SHORTLIST_SCHEMA = {
+    "type": "object",
+    "properties": {"shortlist": {"type": "array", "items": {"type": "string"}}},
+    "required": ["shortlist"],
+    "additionalProperties": False,
+}
+FINAL_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "items": {"type": "array", "items": {
+            "type": "object",
+            "properties": {
+                "candidate": {"type": "string"},
+                "title": {"type": "string"},
+                "summary": {"type": "string"},
+                "url": {"type": "string"},
+                "kind": {"type": "string", "enum": ["news", "learning"]},
+            },
+            "required": ["candidate", "title", "summary", "url", "kind"],
+            "additionalProperties": False,
+        }},
+        "notes": {"type": "string"},
+    },
+    "required": ["items", "notes"],
+    "additionalProperties": False,
+}
+
+
+class RunFailed(RuntimeError):
+    """A digest or deeper run failed. The message is short and safe to show in Telegram;
+    the traceback is in the run folder's error.txt."""
+
+
+def fail_run(run_dir, e):
+    """Save the traceback of `e` in run_dir/error.txt and return a RunFailed pointing at it."""
+    save_run(run_dir, "error.txt", traceback.format_exc())
+    path = run_dir / "error.txt"
+    where = path.relative_to(APP_DIR).as_posix() if path.is_relative_to(APP_DIR) else str(path)
+    reason = (str(e).splitlines() or [""])[0][:150]
+    log(f"  failed: {reason} (details in {where})")
+    return RunFailed(f"{reason or type(e).__name__}. Details: {where}")
 
 
 def runs_left_today(settings, now):
@@ -215,7 +259,19 @@ def save_run(run_dir, name, content):
 
 def run_digest(send_item, run_name=None, dry_run=False):
     """Run one digest. `send_item(item) -> message_id` delivers one message.
-    `run_name` is the schedule slot (e.g. "morning"); None for a manual run."""
+    `run_name` is the schedule slot (e.g. "morning"); None for a manual run.
+    Raises RunFailed (details in the run folder's error.txt) if anything goes wrong."""
+    now = now_local()
+    prune_run_logs()
+    run_dir = RUNS_DIR / f"{now:%Y%m%d-%H%M%S}-{run_name or 'manual'}"
+    run_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        return _run_digest(send_item, run_name, dry_run, now, run_dir)
+    except Exception as e:
+        raise fail_run(run_dir, e) from e
+
+
+def _run_digest(send_item, run_name, dry_run, now, run_dir):
     if timezone_problem():
         raise ValueError(timezone_problem())
     doc = load_rules()
@@ -224,12 +280,8 @@ def run_digest(send_item, run_name=None, dry_run=False):
     day_min, day_max = per_day.get("min", 3), per_day.get("max", 8)
     taste = TASTE_FILE.read_text(encoding="utf-8") if TASTE_FILE.exists() else "(no taste profile yet)"
 
-    now = now_local()
     today = now.date().toordinal()
     db = DB()
-    prune_run_logs()
-    run_dir = RUNS_DIR / f"{now:%Y%m%d-%H%M%S}-{run_name or 'manual'}"
-    run_dir.mkdir(parents=True, exist_ok=True)
 
     sent_today = db.sent_on_day(today)
     later = runs_left_today(settings, now)
@@ -262,9 +314,9 @@ def run_digest(send_item, run_name=None, dry_run=False):
         if len(cands) > SHORTLIST_THRESHOLD:
             prompt = SHORTLIST_PROMPT.format(candidates=describe_candidates(cands), **fmt)
             save_run(run_dir, "1-shortlist-prompt.md", prompt)
-            reply = run_claude(prompt)
+            reply = run_claude(prompt, schema=SHORTLIST_SCHEMA)
             save_run(run_dir, "1-shortlist-reply.md", reply)
-            keep = set(extract_json(reply).get("shortlist", []))
+            keep = set(extract_json(reply, "shortlist")["shortlist"])
             cands = [c for c in cands if c.uid in keep]
             log(f"  shortlist: {len(cands)}")
 
@@ -276,9 +328,9 @@ def run_digest(send_item, run_name=None, dry_run=False):
 
         prompt = FINAL_PROMPT.format(candidates=describe_candidates(cands, full=True), **fmt)
         save_run(run_dir, "2-final-prompt.md", prompt)
-        reply = run_claude(prompt, tools=("WebSearch", "WebFetch"), timeout=1200)
+        reply = run_claude(prompt, tools=("WebSearch", "WebFetch"), timeout=1200, schema=FINAL_SCHEMA)
         save_run(run_dir, "2-final-reply.md", reply)
-        result = extract_json(reply)
+        result = extract_json(reply, "items")
         log(f"  editor: {len(result.get('items', []))} items. {result.get('notes', '')}")
 
         by_uid = {c.uid: c for c in cands}

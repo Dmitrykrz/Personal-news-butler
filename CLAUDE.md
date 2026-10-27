@@ -47,7 +47,11 @@ If you are the agent inside the container, ignore this section.
 
 ## Debugging
 - Bot log: `data/bot.log` (rotating). Each digest run saves its prompts and Claude replies in
-  `data/runs/<timestamp>-<run>/` (1-shortlist-*, 2-final-*, 3-sent.json).
+  `data/runs/<timestamp>-<run>/` (1-shortlist-*, 2-final-*, 3-sent.json). A failed run (digest
+  or deeper) also saves `error.txt` with the traceback there; the Telegram notice names that file.
+- Claude's JSON answers come through `--json-schema` (structured output). If that is missing,
+  `extract_json` in `claude.py` parses the reply text and repairs known slips; its cases are in
+  `tests/` (`python -m unittest discover -s tests`).
 - `python -m newsagent fetch [rule-id]`: test sources without Claude.
 - `python -m newsagent digest --dry-run`: full run printed to stdout, nothing sent, no state change.
 - `python -m compileall -q newsagent`: syntax check.

@@ -32,5 +32,7 @@ jobs:
         run: ruff check .
       - name: Compile
         run: python -m compileall -q newsagent
+      - name: Tests
+        run: python -m unittest discover -s tests
       - name: Example rules are valid
         run: python -c "from newsagent.config import load_rules, CONFIG_DIR; load_rules(CONFIG_DIR / 'rules.example.yaml')"
